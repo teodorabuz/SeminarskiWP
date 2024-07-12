@@ -1,0 +1,61 @@
+version: "3"
+
+services:
+  # Database
+  db:
+    container_name: database
+    image: mysql:latest
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d
+    restart: always
+    ports:
+      - "8070:80"
+    env_file:
+      - ./env/db.env
+    networks:
+      - wpsite
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+  # phpmyadmin
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"
+    env_file:
+      - ./env/php.env
+    networks:
+      - wpsite
+    depends_on:
+      db:
+        condition: service_healthy
+  # Wordpress
+  wordpress:
+    container_name: wordpress
+    depends_on:
+      - db
+    image: wordpress:latest
+    ports:
+      - "8000:80"
+    restart: always
+    volumes: ["./:/var/www/html"]
+    env_file:
+      - ./env/wp.env
+    networks:
+      - wpsite
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+networks:
+  wpsite:
+    driver: bridge
+volumes:
+  db_data:
+    driver: local
